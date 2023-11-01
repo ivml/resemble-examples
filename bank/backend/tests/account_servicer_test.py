@@ -69,7 +69,7 @@ class TestAccount(unittest.IsolatedAsyncioTestCase):
         response = await account.Balance(workflow)
         self.assertEqual(response.balance, 40)
 
-    @patch("account_servicer.send_email")
+    @patch("send_email.send_email")
     async def test_send_welcome_email(self, mock_send_email) -> None:
         await self.rsm.up(
             servicers=[AccountServicer],

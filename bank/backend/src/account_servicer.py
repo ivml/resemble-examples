@@ -1,5 +1,5 @@
 import asyncio
-import logging
+import send_email
 from bank.v1.account_rsm import (
     Account,
     AccountState,
@@ -9,13 +9,11 @@ from bank.v1.account_rsm import (
     OpenRequest,
     WithdrawRequest,
     WithdrawResponse,
+    NameResponse
 )
 from bank.v1.errors_rsm import OverdraftError
 from google.protobuf.empty_pb2 import Empty
 from resemble.aio.contexts import ReaderContext, WriterContext
-
-logging.basicConfig(level=logging.INFO)
-
 
 class AccountServicer(Account.Interface):
 
@@ -37,6 +35,15 @@ class AccountServicer(Account.Interface):
             tasks=[welcome_email_task],
             response=Empty(),
         )
+    
+    async def Name(
+        self,
+        context: ReaderContext,
+        state: AccountState,
+        request: Empty,
+    ) -> NameResponse:
+        print('Responding with', state.customer_name)
+        return NameResponse(customer_name=state.customer_name)
 
     async def Balance(
         self,
@@ -90,18 +97,9 @@ class AccountServicer(Account.Interface):
             "Your Bank"
         )
 
-        await send_email(message_body)
+        await send_email.send_email(message_body)
 
         return Account.WelcomeEmailTaskEffects(
             state=state,
             response=Empty(),
         )
-
-
-async def send_email(message_body: str):
-    # We're not actually going to send an email here; but you could!
-    #
-    # If you do send real emails, please be sure to use an idempotent API, since
-    # (like in any well-written distributed system) this call may be retried in
-    # case of errors.
-    logging.info(f"Sending email:\n====\n{message_body}\n====")

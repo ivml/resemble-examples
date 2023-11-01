@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import send_email
 from bank.v1.account_rsm import Account
 from bank.v1.bank_rsm import (
     Bank,
@@ -8,6 +9,7 @@ from bank.v1.bank_rsm import (
     SignUpRequest,
     SignUpResponse,
     TransferRequest,
+    TransferSuccessEmailTaskRequest
 )
 from bank.v1.errors_rsm import OverdraftError
 from google.protobuf.empty_pb2 import Empty
@@ -69,4 +71,45 @@ class BankServicer(Bank.Interface):
         to_account = Account(request.to_account_id)
         await from_account.Withdraw(context, amount=request.amount)
         await to_account.Deposit(context, amount=request.amount)
+
+        async def send_confirmation_email(
+            context: WriterContext,
+            state: BankState,
+        ) -> Bank.Effects:
+            transfer_email = self.schedule().TransferSuccessEmailTask(context, from_account_id=request.from_account_id, to_account_id=request.to_account_id, amount=request.amount)
+            return Bank.Effects(
+                state=state,
+                tasks=[transfer_email],
+                response=Empty(),
+            )
+
+        await self.write(context, send_confirmation_email)
+
         return Empty()
+
+    async def TransferSuccessEmailTask(
+        self,
+        context: WriterContext,
+        state: BankState,
+        request: TransferSuccessEmailTaskRequest,
+    ) -> Bank.TransferSuccessEmailTaskEffects:
+        from_account = Account(request.from_account_id)
+        to_account = Account(request.to_account_id)
+
+        print('from_account', from_account)
+
+        from_customer_name = await from_account.Name(context)
+        to_customer_name = await to_account.Name(context)
+
+        message_body = (
+            f"Transfer for '{request.amount}' DKK from '{from_customer_name}' to '{to_customer_name}' successful\n"
+            "Best regards,\n"
+            "Your Bank"
+        )
+
+        await send_email.send_email(message_body)
+
+        return Bank.TransferSuccessEmailTaskEffects(
+            state=state,
+            response=Empty(),
+        )

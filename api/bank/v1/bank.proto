@@ -23,6 +23,15 @@ service Bank {
       errors: [ "OverdraftError" ],
     };
   }
+
+  // An async task to send a welcome email to the customer.
+  rpc TransferSuccessEmailTask(TransferSuccessEmailTaskRequest)
+    returns (google.protobuf.Empty) {
+      option (resemble.v1alpha1.method) = {
+      writer: {},
+      task: true,
+    };
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,4 +55,10 @@ message TransferRequest {
   string from_account_id = 1;
   string to_account_id = 2;
   int64 amount = 3;
+}
+
+message TransferSuccessEmailTaskRequest {
+  string from_account_id = 1;
+  string to_account_id = 2;
+  int64 amount = 3; 
 }
